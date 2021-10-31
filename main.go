@@ -58,8 +58,7 @@ func updateTodoList(input string) {
 }
 
 func main() {
-	APP_IP := os.Getenv("APP_IP")
-	APP_PORT := os.Getenv("APP_PORT")
+
 	filelistfull := false
 	http.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
 
@@ -126,7 +125,7 @@ func main() {
 		http.ServeFile(w, r, "public/index.html")
 	})
 
-	http.ListenAndServe(APP_IP+":"+APP_PORT, nil)
+	http.ListenAndServe(":8080", nil)
 }
 
 func UpdateFileList(conn *websocket.Conn, clearlist bool) {
