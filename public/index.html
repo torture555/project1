@@ -1,0 +1,166 @@
+<html>
+  <head>
+    <div>
+      <h1>BIOCAD</h1>
+      <p>Тестовое задание</p>
+      <p>- Выберите файл для вывода графика</p>
+      <p> 
+        <select id = "selectID" onchange="ChangeSelect()">
+            <option disabled selected>Выберите файл</option>
+        </select>
+        <button id = "ButtonEnterFile" disabled = true onclick="DrawChartToFile()">Выбрать</button>
+        <button id = "DeleteFile" onclick = "DeleteFile()" disabled = true>Удалить указанный файл</button>
+      </p>
+      <p>
+        <input id = "AddFileTXT" type = "file" value="Выберите файл" accept=".txt" onchange="ReadFile(this)"><button id = "AddFile" onclick="AddFile()">Добавить</button>
+      </p>
+    </div>
+  </head>
+  <body>
+      <div id="curve_chart" style="width: 1200px; height: 750px"></div>
+  </body>
+  <style>
+    html {
+      text-align: center;
+      font-size: 16px;
+    }
+    body{
+      text-align: center;
+    }
+    #input {
+      font-size: 1px;
+    }
+    p {
+        font-size: 16px;
+    }
+  </style>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
+    var socket = new WebSocket("ws://localhost:8080/todo");
+    var selecter = document.getElementById("selectID");
+    var AddFileInput = document.getElementById("AddFileTXT");
+    var reader = new FileReader();
+
+    google.charts.load('current', {'packages':['corechart']});
+    
+    function DrawChartToFile() {
+      socket.send("GetChartInfo: " + selecter.value);
+    }
+
+    function drawChart(info) {
+      
+      data = [['Метка', 'Значение']]
+      for(let i = 0; i < info.Content.length; i++){
+        l = [info.Content[i].Mark, info.Content[i].Value]
+        data.push(l)
+      };
+      console.info(data);
+      var datatable = google.visualization.arrayToDataTable(data);
+
+      var options = {
+        title: selecter.value,
+        curveType: 'function',
+        color: '#01579b',
+        //legend: { position: 'bottom'},
+        hAxis: {
+          color: '#01579b',
+          title: 'Метка',
+          fontSize: 46,
+          bold: true,
+          italic: true
+        },
+        vAxis: {
+          color: '#01579b',
+          title: 'Значение',
+          fontSize: 46,
+          bold: true,
+          italic: true
+        }
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+
+      chart.draw(datatable, options);
+    };
+
+    socket.onopen = function () {
+      UpdateFileList();
+    };
+
+    socket.onmessage = function (e) {
+      if (e.data.search("file: ") > -1) {
+        var option = document.createElement("option");
+        option.value = e.data.replace("file: ", "");
+        option.text = e.data.replace("file: ", "");
+        selecter.add(option);
+      } else if(e.data.search("clearlist: ") > -1) {
+        removeOptions(selecter);
+      } else if(e.data.search("clearinputfile: ")> -1) {
+        ClearInputFile();
+      } else if(e.data.search("ErrorAddFile: ")> -1){
+        console.info(e.data);
+      } else if(e.data.search("ChartInfo: ")> -1) {
+        drawChart(e.data);
+      } else if(e.data.search("ErrGetChartInfo: ")> -1){
+      
+      } else {
+        try {
+          var json = Object;
+          json = JSON.parse(e.data);
+          console.info(json)
+          if (json.filename = selecter.value) {
+            google.charts.setOnLoadCallback(drawChart(json));
+          }
+        } catch {
+
+        }
+      }
+
+    };
+
+    function UpdateFileList() {
+      socket.send("UpdateFileList");
+    }
+
+    function removeOptions(selectElement) {
+      var i, L = selectElement.options.length - 1;
+      for(i = L; i >= 0; i--) {
+          selectElement.remove(i);
+      }
+      var std_option = document.createElement("option");
+      std_option.disabled = true;
+      std_option.selected = true;
+      std_option.value = "Выберите файл";
+      std_option.text = "Выберите файл";
+      selecter.add(std_option);
+    }
+
+    function ChangeSelect() {
+      if (selecter.value == "Выберите файл") {
+        document.getElementById("ButtonEnterFile").disabled = true;
+        document.getElementById("DeleteFile").disabled = true; 
+      } else {
+        document.getElementById("ButtonEnterFile").disabled = false;
+        document.getElementById("DeleteFile").disabled = false;
+      }
+    }
+
+    function DeleteFile() {
+      socket.send("DeleteFile: " + selecter.value)
+    }
+
+    function AddFile() {
+      socket.send("AddFile: " + AddFileInput.files[0].name + "," + reader.result);
+    }
+
+    function ReadFile(input) {
+      let file = input.files[0];
+      reader.readAsText(file);
+    }
+
+    function ClearInputFile() {
+      AddFileInput.files[0] = undefined;
+    }
+
+    
+  </script>
+</html>
