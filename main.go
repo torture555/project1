@@ -7,11 +7,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
 	//"fmt"
 	"errors"
 	"strconv"
+
 	//"reflect"
 	"bufio"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -55,9 +58,10 @@ func updateTodoList(input string) {
 }
 
 func main() {
-	mux := http.NewServeMux()
+	APP_IP := os.Getenv("APP_IP")
+	APP_PORT := os.Getenv("APP_PORT")
 	filelistfull := false
-	mux.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -118,16 +122,16 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "public/index.html")
 	})
 
-	mux.ListenAndServe("192.168.0.1:8080", mux)
+	http.ListenAndServe(APP_IP+":"+APP_PORT, nil)
 }
 
 func UpdateFileList(conn *websocket.Conn, clearlist bool) {
 	filelist = nil
-	files, err := os.ReadDir("./datafiles")
+	files, err := os.ReadDir("datafiles")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -159,7 +163,7 @@ func UpdateFileList(conn *websocket.Conn, clearlist bool) {
 
 func DeleteFile(filename string) {
 	filename = filename + ".txt"
-	err := os.Remove("./datafiles/" + filename)
+	err := os.Remove("datafiles/" + filename)
 	if err != nil {
 		log.Fatal("Не удален файл: ", err)
 	}
