@@ -1,27 +1,27 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"strings"
-	"os"
 	"encoding/json"
+	"log"
 	"math"
+	"net/http"
+	"os"
+	"strings"
 	//"fmt"
-	"strconv"
 	"errors"
+	"strconv"
 	//"reflect"
 	"bufio"
 	"github.com/gorilla/websocket"
 )
 
 type file_ready_to_send struct {
-	Filename string `json: "filename"`
-	Content [] *file_content `json: "content: "`
+	Filename string          `json: "filename"`
+	Content  []*file_content `json: "content: "`
 }
 
 type file_content struct {
-	Mark float64 `json: "mark"`
+	Mark  float64 `json: "mark"`
 	Value float64 `json: "value"`
 }
 
@@ -55,16 +55,17 @@ func updateTodoList(input string) {
 }
 
 func main() {
+	mux := http.NewServeMux()
 	filelistfull := false
-	http.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
-		
+	mux.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Print("upgrade failed: ", err)
 			return
 		}
 		defer conn.Close()
-		
+
 		for {
 			mt, message, err := conn.ReadMessage()
 			if err != nil {
@@ -80,13 +81,13 @@ func main() {
 				updateTodoList(msg)
 			} else if cmd == "UpdateFileList" {
 				UpdateFileList(conn, filelistfull)
-				filelistfull = true;
-			} else if strings.HasSuffix(cmd,"DeleteFile:") == true {
+				filelistfull = true
+			} else if strings.HasSuffix(cmd, "DeleteFile:") == true {
 				DeleteFile(strings.ReplaceAll(input, "DeleteFile: ", ""))
-				UpdateFileList(conn, filelistfull)	
+				UpdateFileList(conn, filelistfull)
 			} else if cmd == "AddFile:" {
 				err = AddFileInDir(strings.ReplaceAll(input, "AddFile: ", ""))
-				if err != nil{
+				if err != nil {
 					conn.WriteMessage(mt, []byte("ErrorAddFile: Не удалось загрузить файл!"))
 				}
 				UpdateFileList(conn, filelistfull)
@@ -117,14 +118,14 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "public/index.html")
 	})
 
-	http.ListenAndServe(":8080", nil)
+	mux.ListenAndServe("192.168.0.1:8080", mux)
 }
 
-func UpdateFileList(conn *websocket.Conn, clearlist bool)  {
+func UpdateFileList(conn *websocket.Conn, clearlist bool) {
 	filelist = nil
 	files, err := os.ReadDir("./datafiles")
 	if err != nil {
@@ -135,8 +136,8 @@ func UpdateFileList(conn *websocket.Conn, clearlist bool)  {
 		if strings.HasSuffix(file.Name(), ".txt") == true {
 			filelist = append(filelist, strings.ReplaceAll(file.Name(), ".txt", ""))
 		}
-	}	
-	if len(filelist) < 1{
+	}
+	if len(filelist) < 1 {
 		filelist = nil
 	}
 
@@ -148,7 +149,7 @@ func UpdateFileList(conn *websocket.Conn, clearlist bool)  {
 	}
 
 	for i := range filelist {
-		err = conn.WriteMessage(1, []byte("file: " + filelist[i]))
+		err = conn.WriteMessage(1, []byte("file: "+filelist[i]))
 		if err != nil {
 			log.Println("Can't read file: ", filelist[i], err)
 			break
@@ -158,19 +159,19 @@ func UpdateFileList(conn *websocket.Conn, clearlist bool)  {
 
 func DeleteFile(filename string) {
 	filename = filename + ".txt"
-	err := os.Remove("./datafiles/" + filename);
+	err := os.Remove("./datafiles/" + filename)
 	if err != nil {
-		log.Fatal("Не удален файл: ",err)
+		log.Fatal("Не удален файл: ", err)
 	}
 }
 
 func AddFileInDir(input string) error {
 	name := strings.Split(input, ",")[0]
-	f, err := os.Create("datafiles/" + name);
+	f, err := os.Create("datafiles/" + name)
 	if err != nil {
 		log.Println(err)
 	}
-	_, err = f.Write([]byte(strings.ReplaceAll(input,name+",", "")))
+	_, err = f.Write([]byte(strings.ReplaceAll(input, name+",", "")))
 	if err != nil {
 		log.Println(err)
 	}
@@ -182,35 +183,38 @@ func AddFileInDir(input string) error {
 }
 
 func GetChartInfo(filename string) (interface{}, error) {
-	f,err := os.Open("datafiles/" + filename + ".txt")
+	f, err := os.Open("datafiles/" + filename + ".txt")
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 
-	
 	reader := bufio.NewScanner(f)
 	var lines []string
 	for reader.Scan() {
 		lines = append(lines, reader.Text())
 	}
-	
+
 	var result file_ready_to_send
 
 	result.Filename = filename
 
-	for _,line := range lines {
-		if strings.HasSuffix(line, "#") == true {continue}
+	for _, line := range lines {
+		if strings.HasSuffix(line, "#") == true {
+			continue
+		}
 		i := strings.Split(line, " ")
-		if len(i) != 2 {continue}
+		if len(i) != 2 {
+			continue
+		}
 		var j file_content
 		for k, values := range i {
 			l := strings.Split(values, "e")
-			intenger,err := strconv.ParseFloat(l[0],64)
+			intenger, err := strconv.ParseFloat(l[0], 64)
 			if err != nil {
 				break
 			}
-			power, err := strconv.ParseFloat(l[1],64)
+			power, err := strconv.ParseFloat(l[1], 64)
 			if err != nil {
 				break
 			}
